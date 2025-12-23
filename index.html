@@ -217,12 +217,12 @@ async function drawAndSend() {
   for (const p of pairs) {
     try {
       // Zapis do Firebase
-      //await db.collection("pairs").doc(p.id).set({
-        //giver: p.giver.name,
-        //giverEmail: p.giver.email,
-        //receiver: p.receiver.name,
-        //receiverWishlist: []
-      //});
+      await db.collection("pairs").doc(p.id).set({
+        giver: p.giver.name,
+        giverEmail: p.giver.email,
+        receiver: p.receiver.name,
+        receiverWishlist: []
+      });
       
 
       // Wysyłka maila przez EmailJS
