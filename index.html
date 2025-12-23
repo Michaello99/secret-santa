@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Secret Santa Admin</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+<script>
+(function(){
+  emailjs.init("wWENyy67HreppO1b7"); // ← Uzupełnij swoim Public Key z EmailJS
+})();
+</script>
+
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f5f5f7; padding:30px;}
+h1{text-align:center;}
+textarea, input{width:100%; padding:10px; margin:10px 0; border-radius:12px; border:1px solid #d2d2d7;}
+button{padding:12px 20px; border:none; border-radius:16px; background:#007aff; color:white; cursor:pointer;}
+.result{margin-top:20px; font-weight:600;}
+</style>
+</head>
+<body>
+<h1>🎄 Secret Santa Admin</h1>
+
+<label>Lista uczestników (imię, email)</label>
+<textarea id="peopleInput">Ania, ania@gmail.com
+Bartek, bartek@gmail.com
+Kasia, kasia@gmail.com
+Michał, michal@gmail.com</textarea>
+
+<button onclick="drawAndSend()">Losuj i wyślij linki</button>
+
+<div id="output" class="result"></div>
+
+<script>
+function shuffle(array){return array.sort(()=>Math.random()-0.5);}
+function generateId(){return Math.random().toString(36).substr(2,9);}
+
+async function drawAndSend(){
+  const output = document.getElementById("output");
+  const people = peopleInput.value.split("\n").map(l=>{ const p=l.split(","); return {name:p[0].trim(), email:p[1].trim()}; }).filter(Boolean);
+  let receivers = [...people];
+  let ok=false;
+  let pairs=[];
+  for(let i=0;i<1000;i++){
+    shuffle(receivers); ok=true; pairs=[];
+    for(let j=0;j<people.length;j++){
+      if(people[j].name===receivers[j].name){ok=false;break;}
+      pairs.push({giver:people[j],receiver:receivers[j],id:generateId()});
+    }
+    if(ok) break;
+  }
+  if(!ok){output.innerText="Nie udało się wylosować par."; return;}
+
+  const promises = pairs.map(async p=>{
+    // Zapis do Firebase
+    await db.collection("pairs").doc(p.id).set({
+      giver:p.giver.name,
+      giverEmail:p.giver.email,
+      receiver:p.receiver.name,
+      receiverWishlist:[]
+    });
+
+    // Wysyłka maila przez EmailJS
+    const templateParams = {
+      to_name: p.giver.name,
+      to_email: p.giver.email,
+      receiver_name: p.receiver.name,
+      unique_link: `https://twoja-strona.com/santa.html?id=${p.id}`
+    };
+    return emailjs.send("service_29vqohf", "emplate_5tj3h4q", templateParams);
+  });
+
+  output.innerText = "Wysyłanie maili...";
+  try {
+    await Promise.all(promises);
+    output.innerText = "✅ Wszystkie maile zostały wysłane!";
+  } catch(err){
+    console.error(err);
+    output.innerText = "❌ Błąd podczas wysyłania maili. Sprawdź konsolę.";
+  }
+}
+</script>
+</body>
+</html>

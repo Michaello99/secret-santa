@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Secret Santa</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f5f5f7; padding:30px;}
+.container{max-width:600px;margin:auto;background:white;padding:30px;border-radius:20px;box-shadow:0 12px 32px rgba(0,0,0,.1);}
+h1{text-align:center;}
+label{display:block;margin-top:20px;}
+input, textarea{width:100%;padding:10px;border-radius:12px;border:1px solid #d2d2d7;}
+button{margin-top:20px;padding:12px 20px;border-radius:16px;border:none;background:#007aff;color:white;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🎁 Secret Santa</h1>
+<div id="info"></div>
+
+<label>Osoba, którą wylosowałeś</label>
+<input type="text" id="receiverName" readonly>
+
+<label>Lista prezentów tej osoby</label>
+<textarea id="receiverWishlist" readonly></textarea>
+
+<label>Twoja lista prezentów</label>
+<textarea id="myWishlist"></textarea>
+
+<button onclick="saveWishlist()">Zapisz listę</button>
+<div id="status"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+if(!id){document.getElementById("info").innerText="Brak ID!";}
+
+const docRef = db.collection("pairs").doc(id);
+
+async function loadData(){
+  const doc = await docRef.get();
+  if(!doc.exists){document.getElementById("info").innerText="Nie znaleziono pary"; return;}
+  const data = doc.data();
+  document.getElementById("receiverName").value = data.receiver;
+  document.getElementById("receiverWishlist").value = data.receiverWishlist.join("\n");
+  document.getElementById("myWishlist").value = data.giverWishlist?data.giverWishlist.join("\n"):"";
+}
+loadData();
+
+async function saveWishlist(){
+  const wishlist = document.getElementById("myWishlist").value.split("\n").filter(Boolean);
+  await docRef.update({giverWishlist:wishlist});
+  document.getElementById("status").innerText="✅ Zapisano!";
+}
+</script>
+</body>
+</html>
