@@ -90,7 +90,22 @@ label {
 <body>
 
 <h1>🎄 Secret Santa Admin</h1>
-
+<button id="testMail">Wyślij test maila</button>
+<script>
+document.getElementById("testMail").addEventListener("click", async () => {
+  try {
+    const response = await emailjs.send("service_29vqohf", "template_5tj3h4q", {
+      to_name: "Test",
+      to_email: "twoj_email@gmail.com",
+      receiver_name: "Odbiorca",
+      unique_link: "https://example.com"
+    });
+    console.log("Test mail wysłany", response);
+  } catch(e){
+    console.error("Błąd testowego maila", e);
+  }
+});
+</script>
 <label>Lista uczestników (imię, email)</label>
 <textarea id="peopleInput">Ania, ania@gmail.com
 Bartek, bartek@gmail.com
@@ -155,6 +170,7 @@ function parseRestrictions(){
   });
   return res;
 }
+
 
 async function drawAndSend() {
   const output = document.getElementById("output");
