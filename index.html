@@ -16,17 +16,79 @@
 </script>
 
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; background:#f5f5f7; padding:30px;}
-h1{text-align:center;}
-textarea, input, select{width:100%; padding:10px; margin:10px 0; border-radius:12px; border:1px solid #d2d2d7;}
-button{padding:12px 20px; border:none; border-radius:16px; background:#007aff; color:white; cursor:pointer; margin-top:10px;}
-.result{margin-top:20px; font-weight:600;}
-label{font-weight:600;}
-.restriction-row{display:flex; gap:10px; margin-bottom:10px;}
-.restriction-row select{flex:1;}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f5f7;
+  padding: 30px;
+  transition: background 0.3s;
+}
+h1 {
+  text-align: center;
+  color: #111;
+  margin-bottom: 20px;
+}
+textarea, select, input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 14px;
+  border: 1px solid #d2d2d7;
+  background: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+textarea:focus, select:focus, input:focus {
+  outline: none;
+  border-color: #007aff;
+  box-shadow: 0 0 8px rgba(0,122,255,0.3);
+}
+button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 16px;
+  background: #007aff;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+button:hover {
+  background: #005ecb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+.result {
+  margin-top: 20px;
+  font-weight: 600;
+  color: #333;
+  min-height: 24px;
+  transition: color 0.3s;
+}
+label {
+  font-weight: 600;
+  display: block;
+  margin-top: 10px;
+  color: #333;
+}
+.restriction-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: fadeIn 0.3s forwards;
+}
+.restriction-row select {
+  flex: 1;
+}
+@keyframes fadeIn {
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
 </head>
 <body>
+
 <h1>🎄 Secret Santa Admin</h1>
 
 <label>Lista uczestników (imię, email)</label>
@@ -37,23 +99,20 @@ Michał, michal@gmail.com</textarea>
 
 <h3>Ograniczenia</h3>
 <div id="restrictionsContainer"></div>
-<button onclick="addRestriction()">Dodaj ograniczenie</button>
+<button onclick="addRestriction()">➕ Dodaj ograniczenie</button>
 
-<button onclick="drawAndSend()">Losuj i wyślij linki</button>
+<button style="margin-top:20px;" onclick="drawAndSend()">🎁 Losuj i wyślij linki</button>
 
 <div id="output" class="result"></div>
 
 <script>
 function shuffle(array){return array.sort(()=>Math.random()-0.5);}
 function generateId(){return Math.random().toString(36).substr(2,9);}
-
 function getPeopleNames(){ 
-  return peopleInput.value.split("\n").map(l=>{ 
-    const p=l.split(","); return p[0].trim(); 
-  }).filter(Boolean); 
+  return peopleInput.value.split("\n").map(l=>l.split(",")[0].trim()).filter(Boolean);
 }
 
-// Dodawanie nowego wiersza ograniczenia
+// Dodawanie nowego wiersza ograniczenia z animacją
 function addRestriction(){
   const container = document.getElementById("restrictionsContainer");
   const row = document.createElement("div");
@@ -68,8 +127,15 @@ function addRestriction(){
   names.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.text=n; selectReceiver.appendChild(opt); });
 
   const removeBtn = document.createElement("button");
-  removeBtn.textContent = "Usuń";
-  removeBtn.onclick = ()=>row.remove();
+  removeBtn.textContent = "🗑 Usuń";
+  removeBtn.style.background = "#ff3b30";
+  removeBtn.style.margin = "0";
+  removeBtn.onclick = ()=>{
+    row.style.transition = "all 0.3s ease";
+    row.style.opacity = "0";
+    row.style.transform = "translateX(20px)";
+    setTimeout(()=>row.remove(), 300);
+  };
 
   row.appendChild(selectGiver);
   row.appendChild(selectReceiver);
@@ -110,42 +176,31 @@ async function drawAndSend(){
   }
   if(!ok){output.innerText="Nie udało się wylosować par z uwzględnieniem ograniczeń."; return;}
 
-  const promises = pairs.map(async p=>{
-    // Zapis do Firebase
-    await db.collection("pairs").doc(p.id).set({
-      giver:p.giver.name,
-      giverEmail:p.giver.email,
-      receiver:p.receiver.name,
-      receiverWishlist:[]
-    });
+  output.innerText = "📨 Wysyłanie maili...";
 
-    // Wysyłka maila przez EmailJS
-    const templateParams = {
-      to_name: p.giver.name,
-      to_email: p.giver.email,
-      receiver_name: p.receiver.name,
-      unique_link: `https://michaello99.github.io/secret-santa/santa.html?id=${p.id}`
-    };
-    return emailjs.send("service_29vqohf", "template_5tj3h4q", templateParams);
-  });
+  for(const p of pairs){
+    try{
+      // Zapis do Firebase
+      await db.collection("pairs").doc(p.id).set({
+        giver:p.giver.name,
+        giverEmail:p.giver.email,
+        receiver:p.receiver.name,
+        receiverWishlist:[]
+      });
 
-  output.innerText = "Wysyłanie maili...";
-  try {
-  await Promise.all(promises.map(p => 
-    p.catch(err => ({ error: true, details: err }))
-  ));
-  
-  const failed = promises.filter(p => p.error);
-  if(failed.length > 0){
-    output.innerText = `❌ Nie udało się wysłać ${failed.length} maili. Sprawdź konsolę.`;
-    console.error(failed);
-  } else {
-    output.innerText = "✅ Wszystkie maile zostały wysłane!";
+      // Wysyłka maila przez EmailJS
+      await emailjs.send("service_29vqohf", "template_5tj3h4q", {
+        to_name: p.giver.name,
+        to_email: p.giver.email,
+        receiver_name: p.receiver.name,
+        unique_link: `https://michaello99.github.io/secret-santa/santa.html?id=${p.id}`
+      });
+    } catch(err){
+      console.error("Błąd wysyłki dla:", p.giver.email, err);
+    }
   }
-} catch(err){
-  output.innerText = "❌ Wystąpił błąd podczas wysyłania maili. Sprawdź konsolę.";
-  console.error(err);
-}
+
+  output.innerText = "✅ Wszystkie maile zostały wysłane!";
 }
 </script>
 </body>
