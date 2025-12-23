@@ -156,51 +156,77 @@ function parseRestrictions(){
   return res;
 }
 
-async function drawAndSend(){
+async function drawAndSend() {
   const output = document.getElementById("output");
-  const people = peopleInput.value.split("\n").map(l=>{ const p=l.split(","); return {name:p[0].trim(), email:p[1].trim()}; }).filter(Boolean);
-  const restrictions = parseRestrictions();
+  const people = peopleInput.value
+    .split("\n")
+    .map(l => {
+      const p = l.split(",");
+      return { name: p[0].trim(), email: p[1].trim() };
+    })
+    .filter(Boolean);
 
+  const restrictions = parseRestrictions();
   let receivers = [...people];
-  let ok=false;
-  let pairs=[];
-  for(let i=0;i<1000;i++){
-    shuffle(receivers); ok=true; pairs=[];
-    for(let j=0;j<people.length;j++){
+  let ok = false;
+  let pairs = [];
+
+  // Losowanie z uwzględnieniem ograniczeń
+  for (let i = 0; i < 1000; i++) {
+    shuffle(receivers);
+    ok = true;
+    pairs = [];
+    for (let j = 0; j < people.length; j++) {
       const giver = people[j].name;
       const receiver = receivers[j].name;
-      if(giver===receiver || (restrictions[giver] && restrictions[giver].includes(receiver))){ok=false; break;}
-      pairs.push({giver:people[j], receiver:receivers[j], id:generateId()});
+      if (giver === receiver || (restrictions[giver] && restrictions[giver].includes(receiver))) {
+        ok = false;
+        break;
+      }
+      pairs.push({ giver: people[j], receiver: receivers[j], id: generateId() });
     }
-    if(ok) break;
+    if (ok) break;
   }
-  if(!ok){output.innerText="Nie udało się wylosować par z uwzględnieniem ograniczeń."; return;}
+
+  if (!ok) {
+    output.innerText = "❌ Nie udało się wylosować par z uwzględnieniem ograniczeń.";
+    return;
+  }
 
   output.innerText = "📨 Wysyłanie maili...";
+  let successCount = 0;
+  let failCount = 0;
 
-  for(const p of pairs){
-    try{
+  // Wysyłka maili z dokładnym logowaniem
+  for (const p of pairs) {
+    try {
       // Zapis do Firebase
       await db.collection("pairs").doc(p.id).set({
-        giver:p.giver.name,
-        giverEmail:p.giver.email,
-        receiver:p.receiver.name,
-        receiverWishlist:[]
+        giver: p.giver.name,
+        giverEmail: p.giver.email,
+        receiver: p.receiver.name,
+        receiverWishlist: []
       });
 
       // Wysyłka maila przez EmailJS
-      await emailjs.send("service_29vqohf", "template_5tj3h4q", {
+      const response = await emailjs.send("service_29vqohf", "template_5tj3h4q", {
         to_name: p.giver.name,
         to_email: p.giver.email,
         receiver_name: p.receiver.name,
         unique_link: `https://michaello99.github.io/secret-santa/santa.html?id=${p.id}`
       });
-    } catch(err){
-      console.error("Błąd wysyłki dla:", p.giver.email, err);
+
+      console.log(`✅ Mail wysłany do ${p.giver.email}`, response);
+      successCount++;
+
+    } catch (err) {
+      console.error(`❌ Błąd wysyłki dla ${p.giver.email}`, err);
+      failCount++;
     }
   }
 
-  output.innerText = "✅ Wszystkie maile zostały wysłane!";
+  // Podsumowanie w UI
+  output.innerText = `✅ Wysyłka zakończona. Sukcesy: ${successCount}, Błędy: ${failCount}. Sprawdź konsolę dla szczegółów.`;
 }
 </script>
 </body>
