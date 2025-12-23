@@ -22,90 +22,31 @@ body {
   padding: 30px;
   transition: background 0.3s;
 }
-h1 {
-  text-align: center;
-  color: #111;
-  margin-bottom: 20px;
-}
+h1 { text-align: center; color: #111; margin-bottom: 20px; }
 textarea, select, input {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 14px;
-  border: 1px solid #d2d2d7;
-  background: #fff;
-  font-size: 16px;
-  transition: all 0.3s ease;
+  width: 100%; padding: 12px; margin: 8px 0;
+  border-radius: 14px; border: 1px solid #d2d2d7; background: #fff; font-size: 16px; transition: all 0.3s ease;
 }
 textarea:focus, select:focus, input:focus {
-  outline: none;
-  border-color: #007aff;
-  box-shadow: 0 0 8px rgba(0,122,255,0.3);
+  outline: none; border-color: #007aff; box-shadow: 0 0 8px rgba(0,122,255,0.3);
 }
 button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 16px;
-  background: #007aff;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  padding: 12px 24px; border: none; border-radius: 16px;
+  background: #007aff; color: white; font-weight: 600; cursor: pointer;
+  transition: all 0.25s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-button:hover {
-  background: #005ecb;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
-}
-.result {
-  margin-top: 20px;
-  font-weight: 600;
-  color: #333;
-  min-height: 24px;
-  transition: color 0.3s;
-}
-label {
-  font-weight: 600;
-  display: block;
-  margin-top: 10px;
-  color: #333;
-}
-.restriction-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  opacity: 0;
-  transform: translateY(-10px);
-  animation: fadeIn 0.3s forwards;
-}
-.restriction-row select {
-  flex: 1;
-}
-@keyframes fadeIn {
-  to { opacity: 1; transform: translateY(0); }
-}
+button:hover { background: #005ecb; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.15); }
+.result { margin-top: 20px; font-weight: 600; color: #333; min-height: 24px; transition: color 0.3s; }
+label { font-weight:600; display:block; margin-top:10px; color:#333; }
+.restriction-row { display:flex; gap:10px; margin-bottom:10px; opacity:0; transform:translateY(-10px); animation:fadeIn 0.3s forwards; }
+.restriction-row select { flex:1; }
+@keyframes fadeIn { to { opacity:1; transform:translateY(0); } }
 </style>
 </head>
 <body>
 
 <h1>🎄 Secret Santa Admin</h1>
-<button id="testMail">Wyślij test maila</button>
-<script>
-document.getElementById("testMail").addEventListener("click", async () => {
-  try {
-    const response = await emailjs.send("service_29vqohf", "template_5tj3h4q", {
-      to_name: "Test",
-      to_email: "twoj_email@gmail.com",
-      receiver_name: "Odbiorca",
-      unique_link: "https://example.com"
-    });
-    console.log("Test mail wysłany", response);
-  } catch(e){
-    console.error("Błąd testowego maila", e);
-  }
-});
-</script>
+
 <label>Lista uczestników (imię, email)</label>
 <textarea id="peopleInput">Ania, ania@gmail.com
 Bartek, bartek@gmail.com
@@ -121,13 +62,12 @@ Michał, michal@gmail.com</textarea>
 <div id="output" class="result"></div>
 
 <script>
-function shuffle(array){return array.sort(()=>Math.random()-0.5);}
-function generateId(){return Math.random().toString(36).substr(2,9);}
-function getPeopleNames(){ 
-  return peopleInput.value.split("\n").map(l=>l.split(",")[0].trim()).filter(Boolean);
-}
+const db = firebase.firestore();
 
-// Dodawanie nowego wiersza ograniczenia z animacją
+function shuffle(array){ return array.sort(()=>Math.random()-0.5); }
+function generateId(){ return Math.random().toString(36).substr(2,9); }
+function getPeopleNames(){ return peopleInput.value.split("\n").map(l=>l.split(",")[0].trim()).filter(Boolean); }
+
 function addRestriction(){
   const container = document.getElementById("restrictionsContainer");
   const row = document.createElement("div");
@@ -145,12 +85,7 @@ function addRestriction(){
   removeBtn.textContent = "🗑 Usuń";
   removeBtn.style.background = "#ff3b30";
   removeBtn.style.margin = "0";
-  removeBtn.onclick = ()=>{
-    row.style.transition = "all 0.3s ease";
-    row.style.opacity = "0";
-    row.style.transform = "translateX(20px)";
-    setTimeout(()=>row.remove(), 300);
-  };
+  removeBtn.onclick = ()=>{ row.remove(); };
 
   row.appendChild(selectGiver);
   row.appendChild(selectReceiver);
@@ -158,7 +93,6 @@ function addRestriction(){
   container.appendChild(row);
 }
 
-// Parsowanie ograniczeń z ComboBox
 function parseRestrictions(){
   const container = document.getElementById("restrictionsContainer");
   const res = {};
@@ -171,61 +105,43 @@ function parseRestrictions(){
   return res;
 }
 
-
-async function drawAndSend() {
+async function drawAndSend(){
   const output = document.getElementById("output");
-  const people = peopleInput.value
-    .split("\n")
-    .map(l => {
-      const p = l.split(",");
-      return { name: p[0].trim(), email: p[1].trim() };
-    })
-    .filter(Boolean);
-
+  const people = peopleInput.value.split("\n").map(l=>{ const p=l.split(","); return {name:p[0].trim(), email:p[1].trim()}; }).filter(Boolean);
   const restrictions = parseRestrictions();
   let receivers = [...people];
   let ok = false;
   let pairs = [];
 
-  // Losowanie z uwzględnieniem ograniczeń
-  for (let i = 0; i < 1000; i++) {
+  for(let i=0;i<1000;i++){
     shuffle(receivers);
-    ok = true;
-    pairs = [];
-    for (let j = 0; j < people.length; j++) {
+    ok=true;
+    pairs=[];
+    for(let j=0;j<people.length;j++){
       const giver = people[j].name;
       const receiver = receivers[j].name;
-      if (giver === receiver || (restrictions[giver] && restrictions[giver].includes(receiver))) {
-        ok = false;
-        break;
-      }
-      pairs.push({ giver: people[j], receiver: receivers[j], id: generateId() });
+      if(giver===receiver || (restrictions[giver] && restrictions[giver].includes(receiver))){ ok=false; break; }
+      pairs.push({giver:people[j], receiver:receivers[j], id:generateId()});
     }
-    if (ok) break;
+    if(ok) break;
   }
 
-  if (!ok) {
-    output.innerText = "❌ Nie udało się wylosować par z uwzględnieniem ograniczeń.";
-    return;
-  }
+  if(!ok){ output.innerText="❌ Nie udało się wylosować par z uwzględnieniem ograniczeń."; return; }
 
-  output.innerText = "📨 Wysyłanie maili...";
-  let successCount = 0;
-  let failCount = 0;
+  output.innerText="📨 Wysyłanie maili...";
+  let successCount=0, failCount=0;
 
-  // Wysyłka maili z dokładnym logowaniem
-  for (const p of pairs) {
-    try {
-      // Zapis do Firebase
+  for(const p of pairs){
+    try{
+      // 🔹 Zapis do Firebase przed wysyłką maila
       await db.collection("pairs").doc(p.id).set({
         giver: p.giver.name,
         giverEmail: p.giver.email,
         receiver: p.receiver.name,
-        receiverWishlist: []
+        receiverWishlist: [],
+        giverWishlist: []
       });
-      
 
-      // Wysyłka maila przez EmailJS
       const response = await emailjs.send("service_29vqohf", "template_5tj3h4q", {
         to_name: p.giver.name,
         to_email: p.giver.email,
@@ -236,14 +152,13 @@ async function drawAndSend() {
       console.log(`✅ Mail wysłany do ${p.giver.email}`, response);
       successCount++;
 
-    } catch (err) {
+    } catch(err){
       console.error(`❌ Błąd wysyłki dla ${p.giver.email}`, err);
       failCount++;
     }
   }
 
-  // Podsumowanie w UI
-  output.innerText = `✅ Wysyłka zakończona. Sukcesy: ${successCount}, Błędy: ${failCount}. Sprawdź konsolę dla szczegółów.`;
+  output.innerText=`✅ Wysyłka zakończona. Sukcesy: ${successCount}, Błędy: ${failCount}. Sprawdź konsolę dla szczegółów.`;
 }
 </script>
 </body>
