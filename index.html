@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Secret Santa Admin Panel</title>
+<title>Secret Santa Admin</title>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -27,7 +27,7 @@ label{font-weight:600;}
 </style>
 </head>
 <body>
-<h1>🎄 Sekretny Mikołaj - Panel administratora</h1>
+<h1>🎄 Secret Santa Admin</h1>
 
 <label>Lista uczestników (imię, email)</label>
 <textarea id="peopleInput">Ania, ania@gmail.com
@@ -131,12 +131,21 @@ async function drawAndSend(){
 
   output.innerText = "Wysyłanie maili...";
   try {
-    await Promise.all(promises);
+  await Promise.all(promises.map(p => 
+    p.catch(err => ({ error: true, details: err }))
+  ));
+  
+  const failed = promises.filter(p => p.error);
+  if(failed.length > 0){
+    output.innerText = `❌ Nie udało się wysłać ${failed.length} maili. Sprawdź konsolę.`;
+    console.error(failed);
+  } else {
     output.innerText = "✅ Wszystkie maile zostały wysłane!";
-  } catch(err){
-    console.error(err);
-    output.innerText = "❌ Błąd podczas wysyłania maili. Sprawdź konsolę.";
   }
+} catch(err){
+  output.innerText = "❌ Wystąpił błąd podczas wysyłania maili. Sprawdź konsolę.";
+  console.error(err);
+}
 }
 </script>
 </body>
