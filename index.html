@@ -55,111 +55,113 @@ Michał, michal@gmail.com</textarea>
 
 <h3>Ograniczenia</h3>
 <div id="restrictionsContainer"></div>
-<button onclick="addRestriction()">➕ Dodaj ograniczenie</button>
+<button id="addRestrictionBtn">➕ Dodaj ograniczenie</button>
 
-<button style="margin-top:20px;" onclick="drawAndSend()">🎁 Losuj i wyślij linki</button>
+<button id="drawSendBtn" style="margin-top:20px;">🎁 Losuj i wyślij linki</button>
 
 <div id="output" class="result"></div>
 
 <script>
-const db = firebase.firestore();
-
-function shuffle(array){ return array.sort(()=>Math.random()-0.5); }
-function generateId(){ return Math.random().toString(36).substr(2,9); }
-function getPeopleNames(){ return peopleInput.value.split("\n").map(l=>l.split(",")[0].trim()).filter(Boolean); }
-
-function addRestriction(){
-  const container = document.getElementById("restrictionsContainer");
-  const row = document.createElement("div");
-  row.className = "restriction-row";
-
-  const names = getPeopleNames();
-
-  const selectGiver = document.createElement("select");
-  names.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.text=n; selectGiver.appendChild(opt); });
-
-  const selectReceiver = document.createElement("select");
-  names.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.text=n; selectReceiver.appendChild(opt); });
-
-  const removeBtn = document.createElement("button");
-  removeBtn.textContent = "🗑 Usuń";
-  removeBtn.style.background = "#ff3b30";
-  removeBtn.style.margin = "0";
-  removeBtn.onclick = ()=>{ row.remove(); };
-
-  row.appendChild(selectGiver);
-  row.appendChild(selectReceiver);
-  row.appendChild(removeBtn);
-  container.appendChild(row);
-}
-
-function parseRestrictions(){
-  const container = document.getElementById("restrictionsContainer");
-  const res = {};
-  container.querySelectorAll(".restriction-row").forEach(row=>{
-    const giver = row.children[0].value;
-    const receiver = row.children[1].value;
-    if(!res[giver]) res[giver] = [];
-    res[giver].push(receiver);
-  });
-  return res;
-}
-
-async function drawAndSend(){
+document.addEventListener("DOMContentLoaded", () => {
+  const peopleInput = document.getElementById("peopleInput");
+  const restrictionsContainer = document.getElementById("restrictionsContainer");
   const output = document.getElementById("output");
-  const people = peopleInput.value.split("\n").map(l=>{ const p=l.split(","); return {name:p[0].trim(), email:p[1].trim()}; }).filter(Boolean);
-  const restrictions = parseRestrictions();
-  let receivers = [...people];
-  let ok = false;
-  let pairs = [];
+  const addRestrictionBtn = document.getElementById("addRestrictionBtn");
+  const drawSendBtn = document.getElementById("drawSendBtn");
+  const db = firebase.firestore();
 
-  for(let i=0;i<1000;i++){
-    shuffle(receivers);
-    ok=true;
-    pairs=[];
-    for(let j=0;j<people.length;j++){
-      const giver = people[j].name;
-      const receiver = receivers[j].name;
-      if(giver===receiver || (restrictions[giver] && restrictions[giver].includes(receiver))){ ok=false; break; }
-      pairs.push({giver:people[j], receiver:receivers[j], id:generateId()});
-    }
-    if(ok) break;
+  function shuffle(array){ return array.sort(()=>Math.random()-0.5); }
+  function generateId(){ return Math.random().toString(36).substr(2,9); }
+  function getPeopleNames(){ return peopleInput.value.split("\n").map(l=>l.split(",")[0].trim()).filter(Boolean); }
+
+  function addRestriction(){
+    const row = document.createElement("div");
+    row.className="restriction-row";
+
+    const names=getPeopleNames();
+
+    const selectGiver=document.createElement("select");
+    names.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.text=n; selectGiver.appendChild(opt); });
+
+    const selectReceiver=document.createElement("select");
+    names.forEach(n=>{ const opt=document.createElement("option"); opt.value=n; opt.text=n; selectReceiver.appendChild(opt); });
+
+    const removeBtn=document.createElement("button");
+    removeBtn.textContent="🗑 Usuń";
+    removeBtn.style.background="#ff3b30";
+    removeBtn.style.margin="0";
+    removeBtn.onclick=()=>{ row.remove(); };
+
+    row.appendChild(selectGiver);
+    row.appendChild(selectReceiver);
+    row.appendChild(removeBtn);
+    restrictionsContainer.appendChild(row);
   }
 
-  if(!ok){ output.innerText="❌ Nie udało się wylosować par z uwzględnieniem ograniczeń."; return; }
-
-  output.innerText="📨 Wysyłanie maili...";
-  let successCount=0, failCount=0;
-
-  for(const p of pairs){
-    try{
-      // 🔹 Zapis do Firebase przed wysyłką maila
-      await db.collection("pairs").doc(p.id).set({
-        giver: p.giver.name,
-        giverEmail: p.giver.email,
-        receiver: p.receiver.name,
-        receiverWishlist: [],
-        giverWishlist: []
-      });
-
-      const response = await emailjs.send("service_29vqohf", "template_5tj3h4q", {
-        to_name: p.giver.name,
-        to_email: p.giver.email,
-        receiver_name: p.receiver.name,
-        unique_link: `https://michaello99.github.io/secret-santa/santa.html?id=${p.id}`
-      });
-
-      console.log(`✅ Mail wysłany do ${p.giver.email}`, response);
-      successCount++;
-
-    } catch(err){
-      console.error(`❌ Błąd wysyłki dla ${p.giver.email}`, err);
-      failCount++;
-    }
+  function parseRestrictions(){
+    const res = {};
+    restrictionsContainer.querySelectorAll(".restriction-row").forEach(row=>{
+      const giver=row.children[0].value;
+      const receiver=row.children[1].value;
+      if(!res[giver]) res[giver]=[];
+      res[giver].push(receiver);
+    });
+    return res;
   }
 
-  output.innerText=`✅ Wysyłka zakończona. Sukcesy: ${successCount}, Błędy: ${failCount}. Sprawdź konsolę dla szczegółów.`;
-}
+  async function drawAndSend(){
+    const people = peopleInput.value.split("\n").map(l=>{ const p=l.split(","); return {name:p[0].trim(), email:p[1].trim()}; }).filter(Boolean);
+    const restrictions = parseRestrictions();
+    let receivers = [...people];
+    let ok = false;
+    let pairs = [];
+
+    for(let i=0;i<1000;i++){
+      shuffle(receivers);
+      ok=true;
+      pairs=[];
+      for(let j=0;j<people.length;j++){
+        const giver=people[j].name;
+        const receiver=receivers[j].name;
+        if(giver===receiver || (restrictions[giver] && restrictions[giver].includes(receiver))){ ok=false; break; }
+        pairs.push({giver:people[j], receiver:receivers[j], id:generateId()});
+      }
+      if(ok) break;
+    }
+
+    if(!ok){ output.innerText="❌ Nie udało się wylosować par."; return; }
+
+    output.innerText="📨 Wysyłanie maili...";
+    let success=0, fail=0;
+
+    for(const p of pairs){
+      try{
+        // Zapis do Firebase
+        await db.collection("pairs").doc(p.id).set({
+          giver: p.giver.name,
+          giverEmail: p.giver.email,
+          receiver: p.receiver.name,
+          receiverWishlist: [],
+          giverWishlist: []
+        });
+
+        await emailjs.send("service_29vqohf","template_5tj3h4q",{
+          to_name:p.giver.name,
+          to_email:p.giver.email,
+          receiver_name:p.receiver.name,
+          unique_link:`https://michaello99.github.io/secret-santa/santa.html?id=${p.id}`
+        });
+        success++;
+        console.log(`✅ Mail wysłany do ${p.giver.email}`);
+      }catch(err){ console.error(err); fail++; }
+    }
+
+    output.innerText=`✅ Wysyłka zakończona. Sukcesy: ${success}, Błędy: ${fail}`;
+  }
+
+  addRestrictionBtn.addEventListener("click", addRestriction);
+  drawSendBtn.addEventListener("click", drawAndSend);
+});
 </script>
 </body>
 </html>

@@ -16,74 +16,24 @@ body {
   padding: 30px;
   transition: background 0.3s;
 }
-h1, h2 {
-  text-align: center;
-  color: #111;
-  margin-bottom: 20px;
-}
+h1, h2 { text-align:center; color:#111; margin-bottom:20px; }
 .container {
-  max-width: 600px;
-  margin: auto;
-  background: #fff;
-  padding: 25px;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  max-width:600px;
+  margin:auto;
+  background:#fff;
+  padding:25px;
+  border-radius:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.1);
 }
-label {
-  font-weight: 600;
-  display: block;
-  margin-top: 15px;
-  color: #333;
-}
-textarea {
-  width: 100%;
-  padding: 12px;
-  margin-top: 8px;
-  border-radius: 14px;
-  border: 1px solid #d2d2d7;
-  font-size: 16px;
-  background: #fff;
-  transition: all 0.3s ease;
-}
-textarea:focus {
-  outline: none;
-  border-color: #007aff;
-  box-shadow: 0 0 8px rgba(0,122,255,0.3);
-}
-button {
-  margin-top: 20px;
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 16px;
-  background: #007aff;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-button:hover {
-  background: #005ecb;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
-}
-ul {
-  padding-left: 20px;
-}
-.result {
-  margin-top: 15px;
-  font-weight: 600;
-  color: #333;
-  min-height: 24px;
-}
-.fadeIn {
-  animation: fadeIn 0.4s ease forwards;
-  opacity: 0;
-}
-@keyframes fadeIn {
-  to { opacity: 1; }
-}
+label { font-weight:600; display:block; margin-top:15px; color:#333; }
+textarea { width:100%; padding:12px; margin-top:8px; border-radius:14px; border:1px solid #d2d2d7; font-size:16px; background:#fff; transition:all 0.3s ease; }
+textarea:focus { outline:none; border-color:#007aff; box-shadow:0 0 8px rgba(0,122,255,0.3); }
+button { margin-top:20px; width:100%; padding:14px; border:none; border-radius:16px; background:#007aff; color:white; font-weight:600; cursor:pointer; transition:all 0.25s ease; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+button:hover { background:#005ecb; transform:translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,0.15); }
+ul { padding-left:20px; }
+.result { margin-top:15px; font-weight:600; color:#333; min-height:24px; }
+.fadeIn { animation: fadeIn 0.4s ease forwards; opacity:0; }
+@keyframes fadeIn { to { opacity:1; } }
 </style>
 </head>
 <body>
@@ -94,9 +44,7 @@ ul {
   <p id="receiverName">Ładowanie...</p>
 
   <label>Lista prezentów tej osoby:</label>
-  <ul id="receiverWishlist">
-    <li>Ładowanie...</li>
-  </ul>
+  <ul id="receiverWishlist"><li>Ładowanie...</li></ul>
 
   <label>Twoja lista prezentów („moja lista”):</label>
   <textarea id="myWishlistInput" placeholder="Wpisz prezenty, każdy w nowej linii"></textarea>
@@ -109,70 +57,59 @@ ul {
 const db = firebase.firestore();
 const params = new URLSearchParams(window.location.search);
 const pairId = params.get("id");
+
 const output = document.getElementById("output");
 const receiverNameEl = document.getElementById("receiverName");
 const receiverWishlistEl = document.getElementById("receiverWishlist");
 const myWishlistInput = document.getElementById("myWishlistInput");
 const saveBtn = document.getElementById("saveBtn");
 
-// Wczytanie dokumentu pair
-async function loadPair() {
-  if(!pairId){
-    output.innerText = "❌ Brak ID pary w URL!";
+if(!pairId){
+  output.innerText = "❌ Brak ID pary w URL!";
+}
+
+// Live preview: nasłuchujemy zmian w dokumencie Firestore
+db.collection("pairs").doc(pairId).onSnapshot(doc=>{
+  if(!doc.exists) {
+    output.innerText = "❌ Dokument pary nie istnieje!";
     return;
   }
 
-  try {
-    const doc = await db.collection("pairs").doc(pairId).get();
-    if(!doc.exists){
-      output.innerText = "❌ Dokument pary nie istnieje!";
-      return;
-    }
+  const data = doc.data();
 
-    const data = doc.data();
+  // Wylosowana osoba
+  receiverNameEl.innerText = data.receiver || "Brak danych";
 
-    // Wyświetlamy wylosowaną osobę
-    receiverNameEl.innerText = data.receiver || "Brak danych";
-
-    // Lista prezentów wylosowanej osoby
-    const wishlist = data.receiverWishlist || [];
-    receiverWishlistEl.innerHTML = "";
-    if(wishlist.length === 0){
-      receiverWishlistEl.innerHTML = "<li>(Brak wpisanych prezentów)</li>";
-    } else {
-      wishlist.forEach(item=>{
-        const li = document.createElement("li");
-        li.textContent = item;
-        receiverWishlistEl.appendChild(li);
-      });
-    }
-
-    // Wczytaj własną listę, jeśli jest zapisana
-    if(data.giverWishlist){
-      myWishlistInput.value = data.giverWishlist.join("\n");
-    }
-
-  } catch(err){
-    console.error(err);
-    output.innerText = "❌ Błąd wczytywania danych.";
+  // Lista prezentów wylosowanej osoby
+  const wishlist = data.receiverWishlist || [];
+  receiverWishlistEl.innerHTML = "";
+  if(wishlist.length === 0){
+    receiverWishlistEl.innerHTML = "<li>(Brak wpisanych prezentów)</li>";
+  } else {
+    wishlist.forEach(item=>{
+      const li=document.createElement("li");
+      li.textContent=item;
+      receiverWishlistEl.appendChild(li);
+    });
   }
-}
 
-// Zapisanie własnej listy
+  // Wczytanie własnej listy
+  if(data.giverWishlist){
+    myWishlistInput.value = data.giverWishlist.join("\n");
+  }
+});
+
+// Zapis własnej listy
 saveBtn.addEventListener("click", async ()=>{
   const items = myWishlistInput.value.split("\n").map(i=>i.trim()).filter(Boolean);
   try{
-    await db.collection("pairs").doc(pairId).update({
-      giverWishlist: items
-    });
+    await db.collection("pairs").doc(pairId).update({ giverWishlist: items });
     output.innerText = "✅ Twoja lista została zapisana!";
   } catch(err){
     console.error(err);
     output.innerText = "❌ Błąd zapisu listy.";
   }
 });
-
-loadPair();
 </script>
 </body>
 </html>
